@@ -1,7 +1,7 @@
 
 from matplotlib import pyplot
 from matplotlib.patches import Rectangle
-
+import math
 import imageIO.png
 
 
@@ -50,6 +50,7 @@ def readRGBImageToSeparatePixelArrays(input_filename):
 
     return (image_width, image_height, pixel_array_r, pixel_array_g, pixel_array_b)
 
+
 # This method packs together three individual pixel arrays for r, g and b values into a single array that is fit for
 # use in matplotlib's imshow method
 def prepareRGBImageForImshowFromIndividualArrays(r,g,b,w,h):
@@ -75,6 +76,72 @@ def writeGreyscalePixelArraytoPNG(output_filename, pixel_array, image_width, ima
     file.close()
 
 
+def computeRGBToGreyscale(pixel_array_r, pixel_array_g, pixel_array_b, image_width, image_height):
+    greyscale_pixel_array = createInitializedGreyscalePixelArray(image_width, image_height)
+
+    # STUDENT CODE HERE
+
+    for height in range(image_height):
+        for width in range(image_width):
+            g_val = 0.299 * pixel_array_r[height][width] + 0.587 * pixel_array_g[height][width] + 0.114 * pixel_array_b[height][width]
+            greyscale_pixel_array[height][width] = round(g_val)
+
+    return greyscale_pixel_array
+
+
+def computeHorizontalEdgesSobel(pixel_array, image_width, image_height):
+    edges = []
+    for height in range(image_height):
+        row = []
+        for width in range(image_width):
+            if height == 0 or width == 0 or height == image_height - 1 or width == image_width - 1:
+                row.append(0.000)
+            else:
+                positive_part = pixel_array[height - 1][width - 1] / 8 + pixel_array[height - 1][width] / 4 + \
+                                pixel_array[height - 1][width + 1] / 8
+                negative_part = pixel_array[height + 1][width - 1] / 8 + pixel_array[height + 1][width] / 4 + \
+                                pixel_array[height + 1][width + 1] / 8
+                row.append(round(positive_part - negative_part, 3))
+        edges.append(row)
+
+    return edges
+
+
+def computeVerticalEdgesSobel(pixel_array, image_width, image_height):
+    edges = []
+    for height in range(image_height):
+        row = []
+        for width in range(image_width):
+            if height == 0 or width == 0 or height == image_height - 1 or width == image_width - 1:
+                row.append(0.000)
+            else:
+                negative_part = pixel_array[height - 1][width - 1] / 8 + pixel_array[height][width - 1] / 4 + \
+                                pixel_array[height + 1][width - 1] / 8
+                positive_part = pixel_array[height - 1][width + 1] / 8 + pixel_array[height][width + 1] / 4 + \
+                                pixel_array[height + 1][width + 1] / 8
+                row.append(round(positive_part - negative_part, 3))
+        edges.append(row)
+
+    return edges
+
+
+def get_edge_magnitude(horizontal_sobel_array, vertical_sobel_array, image_width, image_height):
+    edge_magnitude = createInitializedGreyscalePixelArray(image_width, image_height)
+
+    for height in range(image_height):
+        for width in range(image_width):
+            edge_magnitude[height][width] = math.sqrt(math.pow(horizontal_sobel_array[height][width], 2) + math.pow(vertical_sobel_array[height][width], 2))
+
+    return edge_magnitude
+
+
+def contrast_stretch(pixel_array, image_width, image_height):
+    pass
+
+
+def mean_smoothing(pixel_array, image_width, image_height):
+    pass
+
 
 def main():
     filename = "./images/covid19QRCode/poster1small.png"
@@ -83,7 +150,12 @@ def main():
     # each pixel array contains 8 bit integer values between 0 and 255 encoding the color values
     (image_width, image_height, px_array_r, px_array_g, px_array_b) = readRGBImageToSeparatePixelArrays(filename)
 
-    pyplot.imshow(prepareRGBImageForImshowFromIndividualArrays(px_array_r, px_array_g, px_array_b, image_width, image_height))
+    greyscale_pixel_array = computeRGBToGreyscale(px_array_r, px_array_g, px_array_b, image_width, image_height)
+    horizontal_sobel_array = computeHorizontalEdgesSobel(greyscale_pixel_array, image_width, image_height)
+    vertical_sobel_array = computeVerticalEdgesSobel(greyscale_pixel_array, image_width, image_height)
+    edge_magnitude = get_edge_magnitude(horizontal_sobel_array, vertical_sobel_array, image_width, image_height)
+
+    pyplot.imshow(edge_magnitude, cmap="gray")
 
     # get access to the current pyplot figure
     axes = pyplot.gca()
@@ -94,7 +166,6 @@ def main():
 
     # plot the current figure
     pyplot.show()
-
 
 
 if __name__ == "__main__":
